@@ -1,0 +1,3035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MITO Core - Universal CSV Converter & NOAA Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f9fc; color: #374151; line-height: 1.5; }
+    .app-title { text-align: center; margin-top: 20px; color: #2563eb; }
+    .app-subtitle { text-align: center; margin-top: -10px; color: #4b5563; margin-bottom: 20px; }
+    
+    /* Main Containers */
+    .container { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+    .card { background: #fff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); margin-bottom: 20px; overflow: hidden; }
+    
+    /* Dropzone */
+    .dropzone { padding: 40px; background: #fff; border: 3px dashed #60a5fa; border-radius: 16px; text-align: center; color: #2563eb; font-size: 1.23em; cursor: pointer; transition: background 0.3s; }
+    .dropzone.dragover { background: #e0f2fe; }
+    
+    /* Status and Output */
+    .status { padding: 12px 20px; background: #e0edfb; border-radius: 8px; margin: 15px 0; min-height: 1em; }
+    .status.error { background: #fee2e2; color: #b91c1c; }
+    
+    /* Buttons and Inputs */
+    button { padding: 8px 16px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.95em; transition: background 0.2s; }
+    button:hover:not([disabled]) { background: #1d4ed8; }
+    button:disabled { background: #93c5fd; cursor: not-allowed; }
+    button.secondary { background: #4b5563; }
+    button.secondary:hover { background: #374151; }
+    button.success { background: #10b981; }
+    button.success:hover { background: #059669; }
+    button.warning { background: #f59e0b; }
+    button.warning:hover { background: #d97706; }
+    button.danger { background: #ef4444; }
+    button.danger:hover { background: #dc2626; }
+    button.h2o-export-btn { background: #7c3aed; }
+    button.h2o-export-btn:hover { background: #6d28d9; }
+    .danger-text { color: #dc2626; }
+
+    input[type="text"], input[type="password"], textarea, select { padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.95em; width: 100%; }
+    select { background: white; }
+
+    /* Tabs */
+    .tabs { display: flex; border-bottom: 1px solid #e5e7eb; background: #f9fafb; flex-wrap: wrap; }
+    .tab { padding: 12px 20px; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; }
+    .tab:hover { background: #f3f4f6; }
+    .tab.active { border-bottom-color: #2563eb; font-weight: 500; color: #2563eb; background: white; }
+    .tab-content { display: none; padding: 20px; }
+    .tab-content.active { display: block; }
+    
+    /* Toolbox */
+    .toolbox { margin-bottom: 15px; }
+    .toolbox textarea { width: 100%; min-height: 100px; font-family: monospace; margin-bottom: 10px; }
+    .button-group { display: flex; gap: 8px; flex-wrap: wrap; }
+    
+    /* Preview */
+    #preview { margin-top: 15px; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    table thead { background: #f3f4f6; }
+    table th, table td { padding: 8px; text-align: left; border: 1px solid #e5e7eb; }
+    table tr:nth-child(even) { background: #f9fafb; }
+    
+    /* Column/Row Operations */
+    .colrow-ops { margin: 15px 0; display: none; }
+    .ops-title { font-weight: 500; margin-bottom: 8px; }
+    .ops-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px; }
+    
+    /* Dark Mode */
+    .dark-mode { background: #1f2937; color: #e5e7eb; }
+    .dark-mode .card { background: #374151; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2); }
+    .dark-mode .tab { color: #d1d5db; }
+    .dark-mode .tab:hover { background: #4b5563; }
+    .dark-mode .tab.active { color: #60a5fa; border-bottom-color: #60a5fa; background: #374151; }
+    .dark-mode table th { background: #4b5563; }
+    .dark-mode table td { border-color: #4b5563; }
+    .dark-mode table tr:nth-child(even) { background: #404a5c; }
+    .dark-mode input, .dark-mode select, .dark-mode textarea { background: #4b5563; border-color: #6b7280; color: #e5e7eb; }
+    .dark-mode .status { background: #374151; }
+    .dark-mode .status.error { background: #7f1d1d; color: #fca5a5; }
+    .dark-mode .dropzone { background: #374151; border-color: #60a5fa; }
+    
+    /* H2O.ai Export Dialog */
+    .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background: rgba(0, 0, 0, 0.4); }
+    .modal-content { background: #fff; margin: 10% auto; padding: 20px; border-radius: 12px; width: 80%; max-width: 600px; }
+    .dark-mode .modal-content { background: #374151; }
+    .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+    .close:hover { color: black; }
+    .dark-mode .close:hover { color: white; }
+    
+    .h2o-options { margin: 20px 0; }
+    .option-group { margin-bottom: 15px; }
+    .option-group label { display: block; margin-bottom: 5px; font-weight: 500; }
+    .checkbox-group { display: flex; align-items: center; margin: 10px 0; }
+    .checkbox-group input[type="checkbox"] { width: auto; margin-right: 8px; }
+    
+    /* API Key Management */
+    .api-keys-section { margin-bottom: 25px; }
+    .key-manager { display: flex; flex-direction: column; gap: 15px; }
+    
+    .service-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; margin-bottom: 10px; }
+    .service-card { background: #f3f4f6; border-radius: 8px; padding: 15px; position: relative; }
+    .dark-mode .service-card { background: #4b5563; }
+    .service-card h3 { margin: 0 0 10px 0; font-size: 1.1em; }
+    .service-key { font-family: monospace; color: #6b7280; margin-bottom: 10px; word-break: break-all; }
+    .service-actions { position: absolute; top: 10px; right: 10px; }
+    
+    .add-service h4 { margin-top: 0; }
+    .service-form { display: flex; gap: 8px; align-items: flex-start; }
+    
+    /* API Operations */
+    .api-operations-section { margin-top: 30px; }
+    .operation-selector { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+    .selector-group { flex: 1; min-width: 200px; }
+    
+    .selector-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+    
+    .operation-params {
+      margin-bottom: 20px;
+    }
+    
+    .param-group {
+      margin-bottom: 15px;
+    }
+    
+    .param-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+    
+    .param-group input, 
+    .param-group textarea,
+    .param-group select {
+      width: 100%;
+    }
+    
+    .param-group textarea {
+      min-height: 100px;
+      font-family: monospace;
+    }
+    
+    .operation-controls {
+      margin-bottom: 20px;
+    }
+    
+    .results-container {
+      background: white;
+      padding: 15px;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+    }
+    
+    .results-view {
+      max-height: 400px;
+      overflow-y: auto;
+      margin-bottom: 15px;
+      padding: 10px;
+      background: #f9fafb;
+      border-radius: 4px;
+    }
+    
+    .dark-mode .results-view {
+      background: #4b5563;
+    }
+    
+    .results-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    /* H2O.ai Validation */
+    .validation-results {
+      background: #f9fafb;
+      padding: 15px;
+      border-radius: 6px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .dark-mode .validation-results {
+      background: #4b5563;
+    }
+    
+    .validation-pass {
+      color: #10b981;
+    }
+    
+    .validation-fail {
+      color: #ef4444;
+    }
+    
+    /* Dataset Split Section */
+    .dataset-split {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    
+    .split-controls {
+      background: #f9fafb;
+      padding: 15px;
+      border-radius: 6px;
+    }
+    
+    .dark-mode .split-controls {
+      background: #4b5563;
+    }
+    
+    .split-slider {
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .split-slider input[type="range"] {
+      flex: 1;
+    }
+    
+    .split-downloads {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 15px;
+      background: #e0edfb;
+      border-radius: 6px;
+    }
+    
+    .dark-mode .split-downloads {
+      background: #374151;
+    }
+    
+    /* Model Preview */
+    .preview-container {
+      background: #f9fafb;
+      padding: 15px;
+      border-radius: 6px;
+      max-height: 400px;
+      overflow-y: auto;
+      font-family: monospace;
+      white-space: pre-wrap;
+      margin-top: 15px;
+    }
+    
+    .dark-mode .preview-container {
+      background: #4b5563;
+    }
+    
+    /* NOAA Dashboard Styles */
+    .noaa-dashboard {
+      padding: 20px;
+      background: #fff;
+      border-radius: 12px;
+    }
+    
+    .dark-mode .noaa-dashboard {
+      background: #374151;
+    }
+    
+    .noaa-dashboard h1 {
+      color: #2563eb;
+      text-align: center;
+      margin-bottom: 1.5em;
+      font-size: 1.8em;
+    }
+    
+    .dark-mode .noaa-dashboard h1 {
+      color: #60a5fa;
+    }
+    
+    .noaa-dashboard label {
+      display: block;
+      margin-bottom: 0.5em;
+      font-weight: bold;
+    }
+    
+    .noaa-dashboard input[type="text"] {
+      margin-bottom: 1em;
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      font-size: 1em;
+    }
+    
+    .dark-mode .noaa-dashboard input[type="text"] {
+      background: #4b5563;
+      border-color: #6b7280;
+      color: #e5e7eb;
+    }
+    
+    .noaa-dashboard button {
+      display: block;
+      margin-bottom: 1.5em;
+      width: 100%;
+      padding: 12px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1em;
+      transition: background 0.2s;
+    }
+    
+    .noaa-dashboard button:hover {
+      background: #1d4ed8;
+    }
+    
+    .dashboard-flex {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2em;
+      margin-bottom: 2em;
+    }
+    
+    .forecast-panel {
+      flex: 1;
+      min-width: 300px;
+    }
+    
+    .chart-panel {
+      flex: 1;
+      min-width: 300px;
+    }
+    
+    .forecast-card {
+      background: #f0f8ff;
+      padding: 1em;
+      border-radius: 8px;
+      margin-bottom: 0.5em;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .dark-mode .forecast-card {
+      background: #3b4a63;
+    }
+    
+    .forecast-title {
+      font-weight: bold;
+      margin-bottom: 0.5em;
+      color: #2563eb;
+    }
+    
+    .dark-mode .forecast-title {
+      color: #60a5fa;
+    }
+    
+    .forecast-small {
+      font-size: 0.9em;
+      color: #374151;
+    }
+    
+    .dark-mode .forecast-small {
+      color: #d1d5db;
+    }
+    
+    #chartContainer {
+      background: white;
+      border-radius: 8px;
+      padding: 1em;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .dark-mode #chartContainer {
+      background: #4b5563;
+    }
+    
+    .stormwater-table-container {
+      margin-top: 2em;
+      padding: 1em;
+      background: white;
+      border-radius: 8px;
+      overflow-x: auto;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .dark-mode .stormwater-table-container {
+      background: #374151;
+    }
+    
+    .stormwater-table-container table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1em;
+    }
+    
+    .stormwater-table-container th {
+      background: #e0edfb;
+      padding: 0.7em;
+      text-align: center;
+      border: 1px solid #d1d5db;
+      color: #2563eb;
+      font-weight: bold;
+    }
+    
+    .stormwater-table-container td {
+      background: #f0f8ff;
+    }
+    
+    .stormwater-table-container caption {
+      margin-bottom: 0.5em;
+      font-weight: bold;
+      color: #40698c;
+    }
+    
+    /* Map Section Styles */
+    .map-section {
+      margin-top: 1.5em;
+      margin-bottom: 2em;
+    }
+    
+    .map-container {
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 6px 24px rgba(50,100,200,0.08);
+      transition: all 0.3s ease;
+    }
+    
+    .map-container:hover {
+      box-shadow: 0 8px 32px rgba(50,100,200,0.15);
+      transform: translateY(-2px);
+    }
+    
+    .dark-mode .map-container {
+      box-shadow: 0 6px 24px rgba(0,0,0,0.3);
+    }
+
+    .note {
+      color: #40698c;
+      font-size: 0.95em;
+      margin-top: 1em;
+      text-align: center;
+    }
+
+    /* Footer */
+    .footer { text-align: center; margin: 30px 0; color: #6b7280; font-size: 0.9em; }
+    .hide { display: none; }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .button-group, .service-form, .results-actions { flex-direction: column; }
+      button, .service-form input { width: 100%; margin-bottom: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="app-title">MITO Core - Universal CSV Converter</h1>
+    <h2 class="app-subtitle">Unified Data Processing Hub with NOAA Weather Dashboard</h2>
+    
+    <div class="card">
+      <div class="dropzone" id="dropzone">
+        Drop any data file or click to select<br>
+        <small>(Excel, ODS, CSV, TSV, TXT, JSON, XML, HTML Table, more)</small>
+      </div>
+      <div class="status" id="status"></div>
+    </div>
+    
+    <div class="card" id="main-content">
+      <div class="tabs">
+        <div class="tab" data-tab="editor">Data Editor</div>
+        <div class="tab" data-tab="apikeys">API Keys</div>
+        <div class="tab" data-tab="h2o">H2O.ai Fine-Tuning</div>
+        <div class="tab" data-tab="split">Dataset Split</div>
+        <div class="tab" data-tab="persona">Persona Integration</div>
+        <div class="tab active" data-tab="noaa">NOAA Dashboard</div>
+      </div>
+      
+      <!-- Data Editor Tab -->
+      <div class="tab-content" id="editor-content">
+        <div class="toolbox">
+          <textarea id="toolbox-input" placeholder="Paste or edit your CSV data here..."></textarea>
+          <div class="button-group">
+            <button id="toolbox-update">Update Preview</button>
+            <button id="toolbox-reformat">Reformat & Clean</button>
+            <button id="toolbox-adjust">Adjust to Consistent Format</button>
+            <button id="download" class="success">Download as CSV</button>
+            <button id="h2o-export" class="h2o-export-btn">Export for H2O.ai</button>
+          </div>
+        </div>
+        
+        <div id="colrow-ops" class="colrow-ops"></div>
+        
+        <div id="preview"></div>
+      </div>
+      
+      <!-- API Keys Tab -->
+      <div class="tab-content" id="apikeys-content">
+        <div class="api-keys-section">
+          <h3>API Key Management</h3>
+          <div class="key-manager" id="key-manager">
+            <div class="service-list" id="service-list">
+              <!-- Service list will be populated here -->
+            </div>
+            
+            <div class="add-service">
+              <h4>Add New Service</h4>
+              <div class="service-form">
+                <input type="text" id="new-service-name" placeholder="Service Name">
+                <input type="password" id="new-service-key" placeholder="API Key">
+                <button id="add-service-btn">Add Service</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="api-operations-section">
+          <h3>Universal API Puller</h3>
+          <div class="operation-selector">
+            <div class="selector-group">
+              <label for="api-service">Service:</label>
+              <select id="api-service">
+                <option value="">Select a service...</option>
+              </select>
+            </div>
+            
+            <div class="selector-group">
+              <label for="api-operation">Operation:</label>
+              <select id="api-operation" disabled>
+                <option value="">Select an operation...</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="operation-params" id="operation-params">
+            <!-- Parameters will be dynamically added here -->
+          </div>
+          
+          <div class="operation-controls">
+            <button id="execute-api" class="h2o-export-btn" disabled>Execute API Call</button>
+            <button id="add-custom-op" class="secondary">Add Custom Operation</button>
+          </div>
+          
+          <div class="results-container hide" id="results-container">
+            <h4>Results</h4>
+            <div class="results-view" id="results-view"></div>
+            <div class="results-actions">
+              <button id="import-results" class="success">Import as CSV</button>
+              <button id="clear-results" class="secondary">Clear Results</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- H2O.ai Fine-Tuning Tab -->
+      <div class="tab-content" id="h2o-content">
+        <div class="h2o-section">
+          <h3>H2O.ai Format Templates</h3>
+          <p>Select a template to format your data for H2O.ai fine-tuning:</p>
+          
+          <div class="h2o-template">
+            <select id="h2o-template">
+              <option value="">Select a template...</option>
+              <option value="instruction">Instruction Tuning Format</option>
+              <option value="classification">Classification Format</option>
+              <option value="chat">Chat Format</option>
+              <option value="persona">Persona-based Format</option>
+            </select>
+            
+            <div id="template-description" class="validation-results hide"></div>
+            
+            <div class="button-group" style="margin-top: 15px;">
+              <button id="apply-template">Apply Template</button>
+              <button id="validate-h2o" class="secondary">Validate Format</button>
+            </div>
+          </div>
+          
+          <div class="h2o-validation">
+            <h4>Format Validation</h4>
+            <div id="validation-results" class="validation-results">
+              <p>Click "Validate Format" to check your data against H2O.ai requirements.</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="model-preview">
+          <h3>Model Preview</h3>
+          <p>See how your data will appear to the model during fine-tuning:</p>
+          
+          <button id="toggle-preview" class="secondary">Generate Model Preview</button>
+          
+          <div id="model-preview-container" class="preview-container hide"></div>
+        </div>
+      </div>
+      
+      <!-- Dataset Split Tab -->
+      <div class="tab-content" id="split-content">
+        <div class="dataset-split">
+          <h3>Dataset Split for Training/Validation</h3>
+          <p>Divide your dataset into training and validation sets:</p>
+          
+          <div class="split-controls">
+            <div class="split-slider">
+              <label for="split-ratio">Training set:</label>
+              <input type="range" id="split-ratio" min="50" max="95" value="80">
+              <span id="train-percent">80</span>%
+            </div>
+            
+            <div class="split-slider">
+              <label>Validation set:</label>
+              <span id="val-percent">20</span>%
+            </div>
+            
+            <button id="apply-split" class="success">Split Dataset</button>
+          </div>
+          
+          <div id="split-downloads" class="split-downloads hide"></div>
+        </div>
+      </div>
+      
+      <!-- Persona Integration Tab -->
+      <div class="tab-content" id="persona-content">
+        <div class="persona-integration">
+          <h3>Persona Creator Integration</h3>
+          <p>Import data from the AI Persona Creator:</p>
+          
+          <div class="button-group">
+            <button id="import-persona" class="secondary">Import Persona Data</button>
+            <input type="file" id="persona-file" class="hide" accept=".json">
+          </div>
+          
+          <div id="persona-preview" class="validation-results hide"></div>
+        </div>
+      </div>
+      
+      <!-- NOAA Dashboard Tab -->
+      <div class="tab-content active" id="noaa-content">
+        <div class="noaa-dashboard">
+          <h1>NOAA Forecast & Stormwater Dashboard</h1>
+          <label>
+            City or Zip:
+            <input type="text" id="location" placeholder="e.g., New York or 90210" />
+          </label>
+          <button onclick="getForecastByLocation()">Get Forecast</button>
+          <div class="dashboard-flex">
+            <div class="forecast-panel">
+              <div id="forecast"></div>
+            </div>
+            <div class="chart-panel">
+              <div id="chartContainer">
+                <canvas id="forecastChart" width="400" height="280"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="stormwater-table-container">
+            <h2 style="color:#2563eb; text-align:center;">NOAA Precipitation Table (6-Hour Interval Example)</h2>
+            <table>
+              <caption>6-Hourly Rainfall - Los Angeles Downtown USC Station (NOAA)</caption>
+              <tr>
+                <th>Date</th>
+                <th>00:00–05:59</th>
+                <th>06:00–11:59</th>
+                <th>12:00–17:59</th>
+                <th>18:00–23:59</th>
+                <th>Total (in)</th>
+                <th>Station Name</th>
+                <th>Station ID</th>
+                <th>Source</th>
+              </tr>
+              <tr>
+                <td>2024-10-01</td>
+                <td>0.04</td>
+                <td>0.12</td>
+                <td>0.00</td>
+                <td>0.00</td>
+                <td>0.16</td>
+                <td>LOS ANGELES USC</td>
+                <td>CQTCA1</td>
+                <td>NOAA</td>
+              </tr>
+              <tr>
+                <td>2024-10-02</td>
+                <td>0.00</td>
+                <td>0.04</td>
+                <td>0.22</td>
+                <td>0.03</td>
+                <td>0.29</td>
+                <td>LOS ANGELES USC</td>
+                <td>CQTCA1</td>
+                <td>NOAA</td>
+              </tr>
+              <tr>
+                <td>2024-10-03</td>
+                <td>0.01</td>
+                <td>0.00</td>
+                <td>0.00</td>
+                <td>0.00</td>
+                <td>0.01</td>
+                <td>LOS ANGELES USC</td>
+                <td>CQTCA1</td>
+                <td>NOAA</td>
+              </tr>
+            </table>
+            <div class="button-group" style="margin-top:1em; justify-content:center;">
+              <button class="success">Import Precipitation Data</button>
+              <button class="secondary">Download as CSV</button>
+            </div>
+          </div>
+          
+          <!-- Google Maps Integration -->
+          <div class="map-section">
+            <h2 style="color:#2563eb; text-align:center; margin-bottom:1em;">Location Map View</h2>
+            <div class="map-container">
+              <iframe id="google-map" width="100%" height="400" src="https://maps.google.com/maps?q=Los Angeles, CA&t=k&z=11&ie=UTF8&iwloc=&output=embed" frameborder="0" scrolling="no" marginheight="0" marginwidth="0"></iframe>
+            </div>
+            <p class="note">Map displays the current forecast location. Click and drag to explore.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- NOAA API Integration Section -->
+    <div class="card" id="noaa-section" style="display: none;">
+      <h2 class="app-subtitle">Connect NOAA API Data with MITO Core</h2>
+      <p style="text-align: center; margin-bottom: 20px;">
+        Add your NOAA API key in the API Keys tab to pull precipitation data directly into CSV format for stormwater reporting.
+      </p>
+      <div class="button-group" style="justify-content: center;">
+        <button onclick="document.querySelector('.tab[data-tab=\'apikeys\']').click();" class="h2o-export-btn">
+          Configure NOAA API
+        </button>
+        <button onclick="document.querySelector('.tab[data-tab=\'noaa\']').click();" class="secondary">
+          Open NOAA Dashboard
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="footer">
+    <p>MITO Core - Universal CSV Converter & API Hub</p>
+    <button id="toggle-dark-mode" class="secondary">Toggle Dark Mode</button>
+  </div>
+  
+  <!-- H2O Export Modal -->
+  <div id="h2o-export-modal" class="modal">
+    <div class="modal-content">
+      <span class="close" id="close-h2o-modal">&times;</span>
+      <h2>Export for H2O.ai Fine-Tuning</h2>
+      
+      <div class="h2o-options">
+        <div class="option-group">
+          <label for="h2o-format">Format:</label>
+          <select id="h2o-format">
+            <option value="instruction">Instruction Tuning</option>
+            <option value="classification">Classification</option>
+            <option value="chat">Chat</option>
+            <option value="persona">Persona-based</option>
+          </select>
+        </div>
+        
+        <div class="checkbox-group">
+          <input type="checkbox" id="include-config" checked>
+          <label for="include-config">Include Config File</label>
+        </div>
+        
+        <div class="checkbox-group">
+          <input type="checkbox" id="include-readme" checked>
+          <label for="include-readme">Include README</label>
+        </div>
+      </div>
+      
+      <div class="button-group">
+        <button id="confirm-h2o-export" class="h2o-export-btn">Export</button>
+        <button id="cancel-h2o-export" class="secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Global variables
+    let csvData = "";
+    let forecastChart = null;
+    let darkMode = localStorage.getItem('darkMode') === 'true';
+    
+    // API Registry for Universal API Puller
+    const apiRegistry = {
+      services: {}
+    };
+    
+    // ===============================================
+    // Initialization and Event Handlers
+    // ===============================================
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initialize UI components
+      const dropzone = document.getElementById('dropzone');
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.multiple = true;
+      fileInput.accept = '.csv,.xlsx,.xls,.ods,.txt,.json,.xml,.html,.htm';
+      fileInput.style.display = 'none';
+      document.body.appendChild(fileInput);
+      
+      // Set up event listeners
+      dropzone.addEventListener('click', () => fileInput.click());
+      dropzone.addEventListener('dragover', e => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+      dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+      dropzone.addEventListener('drop', handleFileDrop);
+      fileInput.addEventListener('change', handleFileSelect);
+      
+      document.getElementById('toolbox-update').addEventListener('click', updatePreview);
+      document.getElementById('toolbox-reformat').addEventListener('click', reformatCSV);
+      document.getElementById('toolbox-adjust').addEventListener('click', adjustFormat);
+      document.getElementById('download').addEventListener('click', downloadCSV);
+      document.getElementById('h2o-export').addEventListener('click', showH2OExportModal);
+      document.getElementById('confirm-h2o-export').addEventListener('click', exportForH2O);
+      document.getElementById('cancel-h2o-export').addEventListener('click', closeH2OExportModal);
+      document.getElementById('close-h2o-modal').addEventListener('click', closeH2OExportModal);
+      document.getElementById('toggle-dark-mode').addEventListener('click', toggleDarkMode);
+      
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+      });
+      
+      document.getElementById('h2o-template').addEventListener('change', showTemplateDescription);
+      document.getElementById('apply-template').addEventListener('click', applyH2OTemplate);
+      document.getElementById('validate-h2o').addEventListener('click', validateH2OFormat);
+      document.getElementById('toggle-preview').addEventListener('click', toggleModelPreview);
+      
+      document.getElementById('split-ratio').addEventListener('input', updateSplitPercentages);
+      document.getElementById('apply-split').addEventListener('click', splitDataset);
+      
+      document.getElementById('import-persona').addEventListener('click', () => {
+        document.getElementById('persona-file').click();
+      });
+      document.getElementById('persona-file').addEventListener('change', importPersonaData);
+      
+      // Apply dark mode if enabled
+      if (darkMode) {
+        document.body.classList.add('dark-mode');
+      }
+      
+      // Initialize API Keys UI
+      initializeApiKeysUI();
+      
+      // Register NOAA API if not already registered
+      if (!apiRegistry.services['noaa']) {
+        apiRegistry.services['noaa'] = {
+          baseUrl: 'https://api.weather.gov',
+          authType: 'none',
+          operations: {
+            'get_forecast': {
+              name: 'Get Weather Forecast by Coordinates',
+              endpoint: '/points/{latitude},{longitude}',
+              method: 'GET',
+              params: [
+                {id: 'latitude', name: 'Latitude', type: 'string', required: true},
+                {id: 'longitude', name: 'Longitude', type: 'string', required: true}
+              ],
+              outputFormat: 'json'
+            }
+          }
+        };
+      }
+      
+      // Auto-load San Francisco forecast on page load
+      if (document.getElementById('location')) {
+        document.getElementById('location').value = "San Francisco, CA";
+        setTimeout(function() {
+          getForecastByLocation();
+        }, 500);
+      }
+    });
+    
+    // ===============================================
+    // File Handling Functions
+    // ===============================================
+    function handleFileDrop(e) {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      
+      if (e.dataTransfer.files.length > 0) {
+        processFiles(e.dataTransfer.files);
+      }
+    }
+    
+    function handleFileSelect(e) {
+      if (e.target.files.length > 0) {
+        processFiles(e.target.files);
+      }
+    }
+    
+    function processFiles(files) {
+      const file = files[0]; // Process only the first file for now
+      
+      if (!file) return;
+      
+      setStatus(`Processing ${file.name}...`);
+      
+      const extension = file.name.split('.').pop().toLowerCase();
+      const reader = new FileReader();
+      
+      if (['xlsx', 'xls', 'ods'].includes(extension)) {
+        readSheetFileToCsv(file);
+      } else if (extension === 'json') {
+        readJsonToCsv(file);
+      } else if (['html', 'htm'].includes(extension)) {
+        readHtmlToCsv(file);
+      } else if (['csv', 'tsv', 'txt'].includes(extension)) {
+        reader.onload = function(e) {
+          csvData = e.target.result;
+          setStatus(`File loaded: ${file.name}`);
+          showToolbox(csvData);
+        };
+        reader.readAsText(file);
+      } else if (extension === 'xml') {
+        readXmlToCsv(file);
+      } else {
+        setStatus(`Unsupported file type: ${extension}`, true);
+      }
+    }
+    
+    function readSheetFileToCsv(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, {type: 'array'});
+          const sheetName = workbook.SheetNames[0];
+          if (!sheetName) throw new Error("No sheet detected in file.");
+          const worksheet = workbook.Sheets[sheetName];
+          csvData = XLSX.utils.sheet_to_csv(worksheet);
+          if (!csvData.trim()) throw new Error("No data found in spreadsheet.");
+          setStatus("Excel/ODS file loaded and converted.");
+          showToolbox(csvData);
+        } catch (error) {
+          setStatus(`Error processing spreadsheet: ${error.message}`, true);
+        }
+      };
+      reader.onerror = () => setStatus("File read error.", true);
+      reader.readAsArrayBuffer(file);
+    }
+    
+    function readJsonToCsv(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const jsonData = JSON.parse(e.target.result);
+          
+          // Check if it's an array of objects
+          if (Array.isArray(jsonData) && jsonData.length > 0 && typeof jsonData[0] === 'object') {
+            // Extract headers from first object
+            const headers = Object.keys(jsonData[0]);
+            
+            // Create CSV content
+            const csvRows = [headers.join(',')];
+            
+            jsonData.forEach(item => {
+              const values = headers.map(header => {
+                const val = item[header];
+                return typeof val === 'string' ? `"${val.replace(/"/g, '""')}"` : val;
+              });
+              csvRows.push(values.join(','));
+            });
+            
+            csvData = csvRows.join('\n');
+            setStatus("JSON file loaded and converted to CSV.");
+            showToolbox(csvData);
+          } else {
+            throw new Error("JSON structure not compatible with CSV conversion.");
+          }
+        } catch (error) {
+          setStatus(`Error processing JSON: ${error.message}`, true);
+        }
+      };
+      reader.onerror = () => setStatus("File read error.", true);
+      reader.readAsText(file);
+    }
+    
+    function readHtmlToCsv(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(e.target.result, 'text/html');
+          const tables = doc.querySelectorAll('table');
+          
+          if (tables.length === 0) throw new Error("No tables found in HTML.");
+          
+          // Use the first table found
+          const table = tables[0];
+          const rows = table.querySelectorAll('tr');
+          const csvRows = [];
+          
+          rows.forEach(row => {
+            const cells = row.querySelectorAll('th, td');
+            const csvCells = [];
+            
+            cells.forEach(cell => {
+              const cellText = cell.textContent.trim();
+              csvCells.push(`"${cellText.replace(/"/g, '""')}"`);
+            });
+            
+            csvRows.push(csvCells.join(','));
+          });
+          
+          csvData = csvRows.join('\n');
+          setStatus("HTML table loaded and converted to CSV.");
+          showToolbox(csvData);
+        } catch (error) {
+          setStatus(`Error processing HTML: ${error.message}`, true);
+        }
+      };
+      reader.onerror = () => setStatus("File read error.", true);
+      reader.readAsText(file);
+    }
+    
+    function readXmlToCsv(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(e.target.result, 'text/xml');
+          
+          // Find the first repeating element to use as rows
+          const rootElement = xmlDoc.documentElement;
+          const childElements = rootElement.children;
+          
+          if (childElements.length === 0) throw new Error("No elements found in XML.");
+          
+          // Get the tag name of the first child
+          const firstChildTag = childElements[0].tagName;
+          
+          // Find all elements with the same tag name
+          const rowElements = xmlDoc.getElementsByTagName(firstChildTag);
+          
+          if (rowElements.length === 0) throw new Error("No repeating elements found in XML.");
+          
+          // Get all unique attribute and child element names as headers
+          const headerSet = new Set();
+          Array.from(rowElements).forEach(el => {
+            // Add attributes
+            Array.from(el.attributes).forEach(attr => headerSet.add(attr.name));
+            
+            // Add child element names
+            Array.from(el.children).forEach(child => headerSet.add(child.tagName));
+          });
+          
+          const headers = Array.from(headerSet);
+          const csvRows = [headers.join(',')];
+          
+          // Process each row element
+          Array.from(rowElements).forEach(el => {
+            const values = headers.map(header => {
+              // Check if it's an attribute
+              if (el.hasAttribute(header)) {
+                const val = el.getAttribute(header);
+                return `"${val.replace(/"/g, '""')}"`;
+              } 
+              
+              // Check if it's a child element
+              const childElement = el.getElementsByTagName(header)[0];
+              if (childElement) {
+                const val = childElement.textContent;
+                return `"${val.replace(/"/g, '""')}"`;
+              }
+              
+              return '""'; // Empty value if not found
+            });
+            
+            csvRows.push(values.join(','));
+          });
+          
+          csvData = csvRows.join('\n');
+          setStatus("XML file loaded and converted to CSV.");
+          showToolbox(csvData);
+        } catch (error) {
+          setStatus(`Error processing XML: ${error.message}`, true);
+        }
+      };
+      reader.onerror = () => setStatus("File read error.", true);
+      reader.readAsText(file);
+    }
+    
+    // ===============================================
+    // UI Functions
+    // ===============================================
+    function showToolbox(data) {
+      const toolboxInput = document.getElementById('toolbox-input');
+      toolboxInput.value = data;
+      
+      // Show the card and switch to editor tab
+      document.getElementById('main-content').classList.remove('hide');
+      switchTab('editor');
+      
+      // Update the preview
+      updatePreview();
+    }
+    
+    function setStatus(message, isError = false) {
+      const statusElement = document.getElementById('status');
+      statusElement.textContent = message;
+      statusElement.className = isError ? 'status error' : 'status';
+    }
+    
+    function switchTab(tabName) {
+      // Update tab active state
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.tab === tabName);
+      });
+      
+      // Update content visibility
+      document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.toggle('active', content.id === `${tabName}-content`);
+      });
+    }
+    
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark-mode');
+      darkMode = document.body.classList.contains('dark-mode');
+      localStorage.setItem('darkMode', darkMode);
+    }
+    
+    function showH2OExportModal() {
+      document.getElementById('h2o-export-modal').style.display = 'block';
+    }
+    
+    function closeH2OExportModal() {
+      document.getElementById('h2o-export-modal').style.display = 'none';
+    }
+    
+    // ===============================================
+    // CSV Processing Functions
+    // ===============================================
+    function updatePreview() {
+      const toolboxInput = document.getElementById('toolbox-input');
+      csvData = toolboxInput.value;
+      
+      if (!csvData.trim()) {
+        setStatus("No data to preview.", true);
+        return;
+      }
+      
+      const preview = document.getElementById('preview');
+      const lines = csvData.split(/\r?\n/).filter(line => line.trim());
+      
+      if (lines.length < 1) {
+        setStatus("No data rows found.", true);
+        return;
+      }
+      
+      try {
+        const headerRow = parseCSVLine(lines[0]);
+        const columnCount = headerRow.length;
+        
+        let tableHtml = '<table><thead><tr>';
+        
+        // Create header row
+        headerRow.forEach(header => {
+          tableHtml += `<th>${escapeHtml(header)}</th>`;
+        });
+        tableHtml += '</tr></thead><tbody>';
+        
+        // Create data rows (up to 100 rows for performance)
+        const maxRows = Math.min(lines.length - 1, 100);
+        
+        for (let i = 1; i <= maxRows; i++) {
+          const cells = parseCSVLine(lines[i]);
+          tableHtml += '<tr>';
+          
+          for (let j = 0; j < columnCount; j++) {
+            tableHtml += `<td>${escapeHtml(cells[j] || '')}</td>`;
+          }
+          
+          tableHtml += '</tr>';
+        }
+        
+        tableHtml += '</tbody></table>';
+        preview.innerHTML = tableHtml;
+        
+        // Show column/row operations
+        document.getElementById('colrow-ops').style.display = 'block';
+        document.getElementById('colrow-ops').innerHTML = `
+          <div class="ops-title">Column/Row Operations:</div>
+          <div class="ops-buttons">
+            <button onclick="addColumn()">Add Column</button>
+            <button onclick="deleteColumn()">Delete Column</button>
+            <button onclick="addRow()">Add Row</button>
+            <button onclick="deleteRow()">Delete Row</button>
+            <button onclick="transposeData()" class="secondary">Transpose</button>
+          </div>
+        `;
+        
+        setStatus(`Preview updated. ${lines.length - 1} rows, ${columnCount} columns.`);
+      } catch (error) {
+        setStatus(`Error parsing CSV: ${error.message}`, true);
+      }
+    }
+    
+    function parseCSVLine(line) {
+      const result = [];
+      let cell = '';
+      let inQuotes = false;
+      let i = 0;
+      
+      while (i < line.length) {
+        const char = line[i];
+        const nextChar = i < line.length - 1 ? line[i + 1] : '';
+        
+        if (char === '"' && !inQuotes) {
+          // Start of quoted field
+          inQuotes = true;
+        } else if (char === '"' && inQuotes) {
+          if (nextChar === '"') {
+            // Escaped quote within quotes
+            cell += '"';
+            i++; // Skip the next quote
+          } else {
+            // End of quoted field
+            inQuotes = false;
+          }
+        } else if (char === ',' && !inQuotes) {
+          // End of cell
+          result.push(cell);
+          cell = '';
+        } else {
+          cell += char;
+        }
+        
+        i++;
+      }
+      
+      // Add the last cell
+      result.push(cell);
+      
+      return result;
+    }
+    
+    function reformatCSV() {
+      if (!csvData.trim()) {
+        setStatus("No data to reformat.", true);
+        return;
+      }
+      
+      try {
+        const lines = csvData.split(/\r?\n/).filter(line => line.trim());
+        
+        if (lines.length < 1) {
+          setStatus("No data rows found.", true);
+          return;
+        }
+        
+        const reformattedRows = [];
+        
+        // Process each line
+        lines.forEach(line => {
+          const cells = parseCSVLine(line);
+          const formattedCells = cells.map(cell => {
+            // Quote all cells for consistency
+            return `"${cell.replace(/"/g, '""')}"`;
+          });
+          
+          reformattedRows.push(formattedCells.join(','));
+        });
+        
+        const reformattedCsv = reformattedRows.join('\n');
+        document.getElementById('toolbox-input').value = reformattedCsv;
+        csvData = reformattedCsv;
+        
+        updatePreview();
+        setStatus("CSV reformatted and cleaned.");
+      } catch (error) {
+        setStatus(`Error reformatting CSV: ${error.message}`, true);
+      }
+    }
+    
+    function adjustFormat() {
+      if (!csvData.trim()) {
+        setStatus("No data to adjust.", true);
+        return;
+      }
+      
+      try {
+        const lines = csvData.split(/\r?\n/).filter(line => line.trim());
+        
+        if (lines.length < 2) {
+          setStatus("Not enough data rows.", true);
+          return;
+        }
+        
+        // Parse header and determine column count
+        const header = parseCSVLine(lines[0]);
+        const columnCount = header.length;
+        
+        // Create adjusted rows
+        const adjustedRows = [header.map(h => `"${h.replace(/"/g, '""')}"`).join(',')];
+        
+        // Process data rows
+        for (let i = 1; i < lines.length; i++) {
+          const cells = parseCSVLine(lines[i]);
+          
+          // Ensure all rows have the same number of columns
+          while (cells.length < columnCount) cells.push('');
+          if (cells.length > columnCount) cells.length = columnCount;
+          
+          // Format cells
+          const formattedCells = cells.map(cell => {
+            // Clean and format each cell
+            return `"${cell.replace(/"/g, '""').trim()}"`;
+          });
+          
+          adjustedRows.push(formattedCells.join(','));
+        }
+        
+        const adjustedCsv = adjustedRows.join('\n');
+        document.getElementById('toolbox-input').value = adjustedCsv;
+        csvData = adjustedCsv;
+        
+        updatePreview();
+        setStatus("CSV adjusted to consistent format.");
+      } catch (error) {
+        setStatus(`Error adjusting CSV format: ${error.message}`, true);
+      }
+    }
+    
+    function downloadCSV() {
+      if (!csvData.trim()) {
+        setStatus("No data to download.", true);
+        return;
+      }
+      
+      const blob = new Blob([csvData], {type: 'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'data.csv';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+    }
+    
+    // Column/Row Operations
+    function addColumn() {
+      try {
+        const lines = csvData.split(/\r?\n/).filter(line => line.trim());
+        if (lines.length < 1) return;
+        
+        const newColumnName = prompt("Enter name for the new column:", "New Column");
+        if (newColumnName === null) return; // User cancelled
+        
+        const newRows = [];
+        
+        // Process each line
+        lines.forEach((line, index) => {
+          const cells = parseCSVLine(line);
+          
+          if (index === 0) {
+            // Add to header
+            cells.push(newColumnName);
+          } else {
+            // Add empty cell to data rows
+            cells.push('');
+          }
+          
+          // Format row
+          const formattedCells = cells.map(cell => `"${cell.replace(/"/g, '""')}"`);
+          newRows.push(formattedCells.join(','));
+        });
+        
+        csvData = newRows.join('\n');
+        document.getElementById('toolbox-input').value = csvData;
+        updatePreview();
+        setStatus("New column added.");
+      } catch (error) {
+        setStatus(`Error adding column: ${error.message}`, true);
+      }
+    }
+    
+    function deleteColumn() {
+      try {
+        const lines = csvData.split(/\r?\n/).filter(line => line.trim());
+        if (lines.length < 1) return;
+        
+        const headerRow = parseCSVLine(lines[0]);
+        if (headerRow.length < 2) {
+          setStatus("Cannot delete column. At least one column must remain.", true);
+          return;
+        }
+        
+        const columnOptions = headerRow.map((name, index) => `${index + 1}: ${name}`).join('\n');
+        const columnInput = prompt(`Enter column number to delete (1-${headerRow.length}):\n${columnOptions}`);
+        
+        if (columnInput === null) return; // User cancelled
+        
+        const columnIndex = parseInt(columnInput) - 1;
+        if (isNaN(columnIndex) || columnIndex < 0 || columnIndex >= headerRow.length) {
+          setStatus("Invalid column number.", true);
+          return;
+        }
+        
+        const newRows = [];
+        
+        // Process each line
+        lines.forEach(line => {
+          const cells = parseCSVLine(line);
+          cells.splice(columnIndex, 1);
+          
+          // Format row
+          const formattedCells = cells.map(cell => `"${cell.replace(/"/g, '""')}"`);
+          newRows.push(formattedCells.join(','));
+        });
+        
+        csvData = newRows.join('\n');
+        document.getElementById('toolbox-input').value = csvData;
+        updatePreview();
+        setStatus(`Column ${columnIndex + 1} deleted.`);
+      } catch (error) {
+        setStatus(`Error deleting column: ${error.message}`, true);
+      }
+    }
+    
+    function addRow() {
+      try {
+        const lines = csvData.split(/\r?\n/).filter(line => line.trim());
+        if (lines.length < 1) return;
+        
+        const headerRow = parseCSVLine(lines[0]);
+        const columnCount = headerRow.length;
+        
+        // Create empty cells for the new row
+        const newCells = Array(columnCount).fill('');
+        const formattedCells = newCells.map(cell => `"${cell}"`);
+        
+        // Insert the new row
+        lines.push(formattedCells.join(','));
+        
+        csvData = lines.join('\n');
+        document.getElementById('toolbox-input').value = csvData;
+        updatePreview();
+        setStatus("New row added.");
+      } catch (error) {
+        setStatus(`Error adding row: ${error.message}`, true);
+      }
+    }
+    
+    function deleteRow() {
+      try {
+        const lines = csvData.split(/\r?\n/).filter(line => line.trim());
+        if (lines.length < 2) {
+          setStatus("Cannot delete row. At least one data row must remain.", true);
+          return;
+        }
+        
+        const rowInput = prompt(`Enter row number to delete (2-${lines.length}):`);
+        if (rowInput === null) return; // User cancelled
+        
+        const rowIndex = parseInt(rowInput);
+        if (isNaN(rowIndex) || rowIndex < 2 || rowIndex > lines.length) {
+          setStatus("Invalid row number. First row (header) cannot be deleted.", true);
+          return;
+        }
+        
+        // Delete the row
+        lines.splice(rowIndex - 1, 1);
+        
+        csvData = lines.join('\n');
+        document.getElementById('toolbox-input').value = csvData;
+        updatePreview();
+        setStatus(`Row ${rowIndex} deleted.`);
+      } catch (error) {
+        setStatus(`Error deleting row: ${error.message}`, true);
+      }
+    }
+    
+    function transposeData() {
+      try {
+        const lines = csvData.split(/\r?\n/).filter(line => line.trim());
+        if (lines.length < 2) {
+          setStatus("Not enough data to transpose.", true);
+          return;
+        }
+        
+        // Parse all rows
+        const parsedRows = lines.map(line => parseCSVLine(line));
+        
+        // Determine the dimensions
+        const rowCount = parsedRows.length;
+        const colCount = Math.max(...parsedRows.map(row => row.length));
+        
+        // Create the transposed matrix
+        const transposed = [];
+        for (let j = 0; j < colCount; j++) {
+          const newRow = [];
+          for (let i = 0; i < rowCount; i++) {
+            newRow.push(parsedRows[i][j] || '');
+          }
+          transposed.push(newRow);
+        }
+        
+        // Format the new CSV
+        const formattedRows = transposed.map(row => 
+          row.map(cell => `"${(cell || '').replace(/"/g, '""')}"`).join(',')
+        );
+        
+        csvData = formattedRows.join('\n');
+        document.getElementById('toolbox-input').value = csvData;
+        updatePreview();
+        setStatus("Data transposed successfully.");
+      } catch (error) {
+        setStatus(`Error transposing data: ${error.message}`, true);
+      }
+    }
+    
+    // Utility Functions
+    function escapeHtml(text) {
+      const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      };
+      return (text || '').replace(/[&<>"']/g, m => map[m]);
+    }
+    
+    function escapeCSV(text) {
+      return (text || '').replace(/"/g, '""');
+    }
+    
+    // ===============================================
+    // H2O.ai Integration
+    // ===============================================
+    function showTemplateDescription() {
+      const template = document.getElementById('h2o-template').value;
+      const descriptionDiv = document.getElementById('template-description');
+      
+      if (!template) {
+        descriptionDiv.classList.add('hide');
+        return;
+      }
+      
+      descriptionDiv.classList.remove('hide');
+      
+      switch (template) {
+        case 'instruction':
+          descriptionDiv.innerHTML = `
+            <p><b>Instruction Tuning Format</b></p>
+            <p>A simple format with two columns:</p>
+            <ul>
+              <li><code>instruction</code>: The prompt or instruction</li>
+              <li><code>response</code>: The desired model response</li>
+            </ul>
+          `;
+          break;
+        case 'classification':
+          descriptionDiv.innerHTML = `
+            <p><b>Classification Format</b></p>
+            <p>For classification tasks:</p>
+            <ul>
+              <li><code>text</code>: The input text to classify</li>
+              <li><code>label</code>: The target classification label</li>
+            </ul>
+          `;
+          break;
+        case 'chat':
+          descriptionDiv.innerHTML = `
+            <p><b>Chat Format</b></p>
+            <p>For conversational training:</p>
+            <ul>
+              <li><code>messages</code>: A JSON array of message objects with <code>role</code> and <code>content</code> fields</li>
+            </ul>
+            <p>Example: <code>[{"role": "user", "content": "Hello"}, {"role": "assistant", "content": "Hi there!"}]</code></p>
+          `;
+          break;
+        case 'persona':
+          descriptionDiv.innerHTML = `
+            <p><b>Persona-based Format</b></p>
+            <p>For training models to respond as specific personas:</p>
+            <ul>
+              <li><code>instruction</code>: The prompt or instruction</li>
+              <li><code>response</code>: The desired model response</li>
+              <li><code>persona</code>: The persona description</li>
+            </ul>
+          `;
+          break;
+      }
+    }
+    
+    function applyH2OTemplate() {
+      const template = document.getElementById('h2o-template').value;
+      
+      if (!template) {
+        setStatus("Please select a template.", true);
+        return;
+      }
+      
+      if (!csvData.trim()) {
+        setStatus("No data to format.", true);
+        return;
+      }
+      
+      try {
+        let formattedCsv;
+        
+        switch (template) {
+          case 'instruction':
+            formattedCsv = formatAsInstructionTuning(csvData);
+            break;
+          case 'classification':
+            formattedCsv = formatAsClassification(csvData);
+            break;
+          case 'chat':
+            formattedCsv = formatAsChat(csvData);
+            break;
+          case 'persona':
+            formattedCsv = formatAsPersona(csvData);
+            break;
+        }
+        
+        document.getElementById('toolbox-input').value = formattedCsv;
+        csvData = formattedCsv;
+        updatePreview();
+        setStatus(`Data formatted for H2O.ai ${template} tuning.`);
+      } catch (error) {
+        setStatus(`Error applying template: ${error.message}`, true);
+      }
+    }
+    
+    function validateH2OFormat() {
+      const template = document.getElementById('h2o-template').value;
+      
+      if (!template) {
+        setStatus("Please select a template to validate against.", true);
+        return;
+      }
+      
+      if (!csvData.trim()) {
+        setStatus("No data to validate.", true);
+        return;
+      }
+      
+      try {
+        const result = detectAndValidateH2OFormat(csvData);
+        const validationResults = document.getElementById('validation-results');
+        
+        if (result.format === template) {
+          validationResults.innerHTML = `
+            <div class="validation-pass">✓ Data matches the ${template} format.</div>
+          `;
+          setStatus("Validation successful.");
+        } else if (result.format === 'unknown') {
+          validationResults.innerHTML = `
+            <div class="validation-fail">✗ Data does not match any H2O.ai format.</div>
+            <p>Issues found:</p>
+            <ul>
+              ${result.issues.map(issue => `<li>${issue}</li>`).join('')}
+            </ul>
+          `;
+          setStatus("Validation failed. See details below.", true);
+        } else {
+          validationResults.innerHTML = `
+            <div class="validation-fail">✗ Data matches ${result.format} format, not ${template} format.</div>
+            <p>To convert to ${template} format, use the "Apply Template" button.</p>
+          `;
+          setStatus("Data is in a different H2O.ai format.", true);
+        }
+      } catch (error) {
+        setStatus(`Error validating format: ${error.message}`, true);
+      }
+    }
+    
+    function toggleModelPreview() {
+      const previewContainer = document.getElementById('model-preview-container');
+      const toggleButton = document.getElementById('toggle-preview');
+      
+      if (previewContainer.classList.contains('hide')) {
+        // Show preview
+        if (!csvData.trim()) {
+          setStatus("No data to preview.", true);
+          return;
+        }
+        
+        try {
+          const lines = csvData.split(/\r?\n/).filter(line => line.trim());
+          if (lines.length < 2) throw new Error("Not enough data.");
+          
+          const headers = parseCSVLine(lines[0]);
+          
+          // Determine format
+          let format = 'unknown';
+          if (headers.includes('instruction') && headers.includes('response')) {
+            format = 'instruction';
+            if (headers.includes('persona')) format = 'persona';
+          } else if (headers.includes('text') && headers.includes('label')) {
+            format = 'classification';
+          } else if (headers.includes('messages')) {
+            format = 'chat';
+          }
+          
+          if (format === 'unknown') {
+            throw new Error("Could not determine data format. Please apply a template first.");
+          }
+          
+          // Generate preview based on format
+          let preview = '';
+          const row = parseCSVLine(lines[1]); // Use the first data row for preview
+          
+          switch (format) {
+            case 'instruction':
+              const instIdx = headers.indexOf('instruction');
+              const respIdx = headers.indexOf('response');
+              preview = `# Instruction Tuning Example\n\n`;
+              preview += `## Prompt:\n${row[instIdx]}\n\n`;
+              preview += `## Response:\n${row[respIdx]}`;
+              break;
+            case 'classification':
+              const textIdx = headers.indexOf('text');
+              const labelIdx = headers.indexOf('label');
+              preview = `# Classification Example\n\n`;
+              preview += `## Input Text:\n${row[textIdx]}\n\n`;
+              preview += `## Classification:\n${row[labelIdx]}`;
+              break;
+            case 'chat':
+              const msgIdx = headers.indexOf('messages');
+              try {
+                const messages = JSON.parse(row[msgIdx]);
+                preview = `# Chat Example\n\n`;
+                messages.forEach(msg => {
+                  preview += `## ${msg.role.charAt(0).toUpperCase() + msg.role.slice(1)}:\n${msg.content}\n\n`;
+                });
+              } catch (e) {
+                throw new Error("Could not parse messages JSON.");
+              }
+              break;
+            case 'persona':
+              const personaInstIdx = headers.indexOf('instruction');
+              const personaRespIdx = headers.indexOf('response');
+              const personaIdx = headers.indexOf('persona');
+              preview = `# Persona-Based Example\n\n`;
+              preview += `## Persona:\n${row[personaIdx]}\n\n`;
+              preview += `## Prompt:\n${row[personaInstIdx]}\n\n`;
+              preview += `## Response:\n${row[personaRespIdx]}`;
+              break;
+          }
+          
+          previewContainer.textContent = preview;
+          previewContainer.classList.remove('hide');
+          toggleButton.textContent = 'Hide Model Preview';
+        } catch (error) {
+          setStatus(`Error generating preview: ${error.message}`, true);
+        }
+      } else {
+        // Hide preview
+        previewContainer.classList.add('hide');
+        toggleButton.textContent = 'Generate Model Preview';
+      }
+    }
+    
+    function formatAsInstructionTuning(csvData) {
+      const lines = csvData.split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 2) {
+        throw new Error('Not enough data to format');
+      }
+      
+      // Check if already in correct format
+      const headers = parseCSVLine(lines[0]);
+      if (headers.includes('instruction') && headers.includes('response')) {
+        return csvData; // Already in correct format
+      }
+      
+      // If we have exactly two columns, assume they are instruction/response
+      if (headers.length === 2) {
+        const newCsv = ['instruction,response'];
+        
+        // Skip header, process data rows
+        for (let i = 1; i < lines.length; i++) {
+          const cells = parseCSVLine(lines[i]);
+          if (cells.length >= 2) {
+            newCsv.push(`"${escapeCSV(cells[0])}","${escapeCSV(cells[1])}"`);
+          }
+        }
+        
+        return newCsv.join('\n');
+      }
+      
+      // More complex case: Let user select columns
+      // For simplicity, just use first two columns
+      const newCsv = ['instruction,response'];
+      
+      for (let i = 1; i < lines.length; i++) {
+        const cells = parseCSVLine(lines[i]);
+        if (cells.length >= 2) {
+          newCsv.push(`"${escapeCSV(cells[0])}","${escapeCSV(cells[1])}"`);
+        }
+      }
+      
+      return newCsv.join('\n');
+    }
+    
+    function formatAsClassification(csvData) {
+      const lines = csvData.split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 2) {
+        throw new Error('Not enough data to format');
+      }
+      
+      // Check if already in correct format
+      const headers = parseCSVLine(lines[0]);
+      if (headers.includes('text') && headers.includes('label')) {
+        return csvData; // Already in correct format
+      }
+      
+      // Convert to classification format
+      const newCsv = ['text,label'];
+      
+      // Skip header, process data rows
+      for (let i = 1; i < lines.length; i++) {
+        const cells = parseCSVLine(lines[i]);
+        if (cells.length >= 2) {
+          newCsv.push(`"${escapeCSV(cells[0])}","${escapeCSV(cells[1])}"`);
+        }
+      }
+      
+      return newCsv.join('\n');
+    }
+    
+    function formatAsChat(csvData) {
+      const lines = csvData.split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 2) {
+        throw new Error('Not enough data to format');
+      }
+      
+      // For chat format, we need to check structure and convert
+      const headers = parseCSVLine(lines[0]);
+      
+      // If already in messages format, return as is
+      if (headers.includes('messages')) {
+        return csvData;
+      }
+      
+      // If we have user/assistant columns, convert to chat format
+      const userColIndex = headers.findIndex(h => 
+        h.toLowerCase().includes('user') || 
+        h.toLowerCase().includes('input') || 
+        h.toLowerCase().includes('question'));
+      
+      const assistantColIndex = headers.findIndex(h => 
+        h.toLowerCase().includes('assistant') || 
+        h.toLowerCase().includes('output') || 
+        h.toLowerCase().includes('response') || 
+        h.toLowerCase().includes('answer'));
+      
+      if (userColIndex !== -1 && assistantColIndex !== -1) {
+        const newCsv = ['messages'];
+        
+        // Skip header, process data rows
+        for (let i = 1; i < lines.length; i++) {
+          const cells = parseCSVLine(lines[i]);
+          if (cells.length > Math.max(userColIndex, assistantColIndex)) {
+            const userMessage = cells[userColIndex];
+            const assistantMessage = cells[assistantColIndex];
+            
+            const messages = JSON.stringify([
+              {"role": "user", "content": userMessage},
+              {"role": "assistant", "content": assistantMessage}
+            ]);
+            
+            newCsv.push(`"${escapeCSV(messages)}"`);
+          }
+        }
+        
+        return newCsv.join('\n');
+      }
+      
+      throw new Error('Cannot convert to chat format: missing user or assistant columns');
+    }
+    
+    function formatAsPersona(csvData) {
+      const lines = csvData.split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 2) {
+        throw new Error('Not enough data to format');
+      }
+      
+      // Check if already in correct format
+      const headers = parseCSVLine(lines[0]);
+      if (headers.includes('instruction') && headers.includes('response') && headers.includes('persona')) {
+        return csvData; // Already in correct format
+      }
+      
+      // If we have instruction and response columns but no persona
+      if (headers.includes('instruction') && headers.includes('response') && !headers.includes('persona')) {
+        const instructionIdx = headers.indexOf('instruction');
+        const responseIdx = headers.indexOf('response');
+        
+        // Ask user for default persona
+        const defaultPersona = prompt("Enter a default persona to use for all examples:", "Helpful assistant");
+        if (defaultPersona === null) throw new Error("Operation cancelled");
+        
+        const newCsv = ['instruction,response,persona'];
+        
+        // Skip header, process data rows
+        for (let i = 1; i < lines.length; i++) {
+          const cells = parseCSVLine(lines[i]);
+          if (cells.length > Math.max(instructionIdx, responseIdx)) {
+            const instruction = cells[instructionIdx];
+            const response = cells[responseIdx];
+            
+            newCsv.push(`"${escapeCSV(instruction)}","${escapeCSV(response)}","${escapeCSV(defaultPersona)}"`);
+          }
+        }
+        
+        return newCsv.join('\n');
+      }
+      
+      // For simplicity in other cases, assume first two columns are instruction/response
+      // and add a default persona
+      const defaultPersona = prompt("Enter a default persona to use for all examples:", "Helpful assistant");
+      if (defaultPersona === null) throw new Error("Operation cancelled");
+      
+      const newCsv = ['instruction,response,persona'];
+      
+      // Skip header, process data rows
+      for (let i = 1; i < lines.length; i++) {
+        const cells = parseCSVLine(lines[i]);
+        if (cells.length >= 2) {
+          newCsv.push(`"${escapeCSV(cells[0])}","${escapeCSV(cells[1])}","${escapeCSV(defaultPersona)}"`);
+        }
+      }
+      
+      return newCsv.join('\n');
+    }
+    
+    function exportForH2O() {
+      const selectedH2OFormat = document.getElementById('h2o-format').value;
+      const includeConfig = document.getElementById('include-config').checked;
+      const includeReadme = document.getElementById('include-readme').checked;
+      
+      if (!csvData.trim()) {
+        setStatus("No data to export.", true);
+        return;
+      }
+      
+      // Apply the selected format
+      let optimizedCSV;
+      try {
+        switch (selectedH2OFormat) {
+          case 'instruction':
+            optimizedCSV = formatAsInstructionTuning(csvData);
+            break;
+          case 'classification':
+            optimizedCSV = formatAsClassification(csvData);
+            break;
+          case 'chat':
+            optimizedCSV = formatAsChat(csvData);
+            break;
+          case 'persona':
+            optimizedCSV = formatAsPersona(csvData);
+            break;
+        }
+      } catch (error) {
+        setStatus(`Error formatting for H2O.ai: ${error.message}`, true);
+        closeH2OExportModal();
+        return;
+      }
+      
+      // Create CSV file blob
+      const csvBlob = new Blob([optimizedCSV], {type: 'text/csv'});
+      downloadFile(csvBlob, `h2o_${selectedH2OFormat}_data.csv`);
+      
+      // Create config file if requested
+      if (includeConfig) {
+        const config = {
+          format_type: selectedH2OFormat,
+          fine_tuning: {
+            epochs: getRecommendedEpochs(optimizedCSV, selectedH2OFormat),
+            learning_rate: 2e-5,
+            batch_size: 4
+          },
+          metadata: {
+            examples: optimizedCSV.split('\n').length - 1,
+            exported_date: new Date().toISOString(),
+            tool: "MITO Core - Universal CSV Converter"
+          },
+          usage: {
+            cli_command: `h2o finetune --data h2o_${selectedH2OFormat}_data.csv --config h2o_${selectedH2OFormat}_config.json`,
+            notes: "Adjust the parameters in the config file based on your specific requirements"
+          }
+        };
+        
+        const configBlob = new Blob([JSON.stringify(config, null, 2)], {type: 'application/json'});
+        downloadFile(configBlob, `h2o_${selectedH2OFormat}_config.json`);
+      }
+      
+      // Create README if requested
+      if (includeReadme) {
+        const readme = generateReadme(selectedH2OFormat);
+        const readmeBlob = new Blob([readme], {type: 'text/plain'});
+        downloadFile(readmeBlob, `h2o_${selectedH2OFormat}_README.txt`);
+      }
+      
+      // Close modal and show success message
+      closeH2OExportModal();
+      setStatus(`Exported data for H2O.ai ${selectedH2OFormat} fine-tuning.`);
+    }
+    
+    function detectAndValidateH2OFormat(csvData) {
+      const lines = csvData.split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 2) {
+        return { format: 'unknown', issues: ['Not enough data rows'] };
+      }
+      
+      const headers = parseCSVLine(lines[0]);
+      let format = 'unknown';
+      
+      // Detect format type
+      if (headers.includes('instruction') && headers.includes('response')) {
+        format = headers.includes('persona') ? 'persona' : 'instruction';
+      } else if (headers.includes('text') && headers.includes('label')) {
+        format = 'classification';
+      } else if (headers.includes('messages')) {
+        format = 'chat';
+      }
+      
+      // If unknown format, gather issues
+      const issues = [];
+      if (format === 'unknown') {
+        issues.push('Header row does not match any H2O.ai format');
+        issues.push('Expected headers like "instruction,response" or "text,label" or "messages"');
+      } else {
+        // Validate based on format
+        switch (format) {
+          case 'instruction':
+            validateInstructionFormat(lines, headers, issues);
+            break;
+          case 'classification':
+            validateClassificationFormat(lines, headers, issues);
+            break;
+          case 'chat':
+            validateChatFormat(lines, headers, issues);
+            break;
+          case 'persona':
+            validatePersonaFormat(lines, headers, issues);
+            break;
+        }
+      }
+      
+      return { format, issues };
+    }
+    
+    function validateInstructionFormat(lines, headers, issues) {
+      const instrIdx = headers.indexOf('instruction');
+      const respIdx = headers.indexOf('response');
+      
+      let emptyInstructions = 0;
+      let emptyResponses = 0;
+      
+      for (let i = 1; i < lines.length; i++) {
+        const cells = parseCSVLine(lines[i]);
+        
+        if (cells.length <= Math.max(instrIdx, respIdx)) {
+          issues.push(`Row ${i+1} does not have enough columns`);
+          continue;
+        }
+        
+        if (!cells[instrIdx].trim()) emptyInstructions++;
+        if (!cells[respIdx].trim()) emptyResponses++;
+      }
+      
+      if (emptyInstructions > 0) {
+        issues.push(`${emptyInstructions} rows have empty instructions`);
+      }
+      
+      if (emptyResponses > 0) {
+        issues.push(`${emptyResponses} rows have empty responses`);
+      }
+    }
+    
+    function validateClassificationFormat(lines, headers, issues) {
+      const textIdx = headers.indexOf('text');
+      const labelIdx = headers.indexOf('label');
+      
+      let emptyTexts = 0;
+      let emptyLabels = 0;
+      
+      for (let i = 1; i < lines.length; i++) {
+        const cells = parseCSVLine(lines[i]);
+        
+        if (cells.length <= Math.max(textIdx, labelIdx)) {
+          issues.push(`Row ${i+1} does not have enough columns`);
+          continue;
+        }
+        
+        if (!cells[textIdx].trim()) emptyTexts++;
+        if (!cells[labelIdx].trim()) emptyLabels++;
+      }
+      
+      if (emptyTexts > 0) {
+        issues.push(`${emptyTexts} rows have empty text fields`);
+      }
+      
+      if (emptyLabels > 0) {
+        issues.push(`${emptyLabels} rows have empty label fields`);
+      }
+    }
+    
+    function validateChatFormat(lines, headers, issues) {
+      const msgIdx = headers.indexOf('messages');
+      
+      let invalidJson = 0;
+      let invalidStructure = 0;
+      
+      for (let i = 1; i < lines.length; i++) {
+        const cells = parseCSVLine(lines[i]);
+        
+        if (cells.length <= msgIdx) {
+          issues.push(`Row ${i+1} does not have enough columns`);
+          continue;
+        }
+        
+        try {
+          const messages = JSON.parse(cells[msgIdx]);
+          
+          if (!Array.isArray(messages)) {
+            invalidStructure++;
+            continue;
+          }
+          
+          for (const msg of messages) {
+            if (typeof msg !== 'object' || !msg.role || !msg.content) {
+              invalidStructure++;
+              break;
+            }
+          }
+        } catch (e) {
+          invalidJson++;
+        }
+      }
+      
+      if (invalidJson > 0) {
+        issues.push(`${invalidJson} rows have invalid JSON in the messages column`);
+      }
+      
+      if (invalidStructure > 0) {
+        issues.push(`${invalidStructure} rows have valid JSON but incorrect message structure`);
+      }
+    }
+    
+    function validatePersonaFormat(lines, headers, issues) {
+      const instrIdx = headers.indexOf('instruction');
+      const respIdx = headers.indexOf('response');
+      const personaIdx = headers.indexOf('persona');
+      
+      let emptyInstructions = 0;
+      let emptyResponses = 0;
+      let emptyPersonas = 0;
+      
+      for (let i = 1; i < lines.length; i++) {
+        const cells = parseCSVLine(lines[i]);
+        
+        if (cells.length <= Math.max(instrIdx, respIdx, personaIdx)) {
+          issues.push(`Row ${i+1} does not have enough columns`);
+          continue;
+        }
+        
+        if (!cells[instrIdx].trim()) emptyInstructions++;
+        if (!cells[respIdx].trim()) emptyResponses++;
+        if (!cells[personaIdx].trim()) emptyPersonas++;
+      }
+      
+      if (emptyInstructions > 0) {
+        issues.push(`${emptyInstructions} rows have empty instructions`);
+      }
+      
+      if (emptyResponses > 0) {
+        issues.push(`${emptyResponses} rows have empty responses`);
+      }
+      
+      if (emptyPersonas > 0) {
+        issues.push(`${emptyPersonas} rows have empty personas`);
+      }
+    }
+    
+    function getRecommendedEpochs(csvData, format) {
+      const lines = csvData.split(/\r?\n/).filter(l => l.trim());
+      const rowCount = Math.max(1, lines.length - 1); // Exclude header
+      
+      // Base recommendation on dataset size
+      if (rowCount < 100) return 10;
+      if (rowCount < 500) return 5;
+      if (rowCount < 2000) return 3;
+      return 2;
+    }
+    
+    function generateReadme(format) {
+      return `H2O.ai Fine-Tuning Dataset - ${format.charAt(0).toUpperCase() + format.slice(1)} Format
+=====================================================================
+
+This dataset has been formatted for ${format} fine-tuning with H2O.ai models.
+
+File Contents:
+-------------
+- h2o_${format}_data.csv: Main dataset in CSV format
+- h2o_${format}_config.json: Configuration file with recommended parameters
+- h2o_${format}_README.txt: This file
+
+Format Description:
+-----------------
+${getFormatDescription(format)}
+
+Usage Instructions:
+-----------------
+1. Ensure you have the H2O.ai CLI tool installed
+2. Run the fine-tuning process:
+   h2o finetune --data h2o_${format}_data.csv --config h2o_${format}_config.json
+3. Adjust parameters in the config file as needed for your specific use case
+
+Notes:
+-----
+- The number of epochs and learning rate in the config file are recommendations
+- Adjust batch size based on your available memory
+- For best results, ensure your dataset has diverse and representative examples
+
+Created with MITO Core - Universal CSV Converter
+${new Date().toISOString().split('T')[0]}
+`;
+    }
+    
+    function getFormatDescription(format) {
+      switch (format) {
+        case 'instruction':
+          return `The instruction format contains two columns:
+- instruction: The prompt or instruction for the model
+- response: The desired response the model should generate`;
+        case 'classification':
+          return `The classification format contains two columns:
+- text: The input text to be classified
+- label: The target classification label`;
+        case 'chat':
+          return `The chat format contains a single column:
+- messages: A JSON array of message objects with 'role' and 'content' fields
+  Example: [{"role": "user", "content": "Hello"}, {"role": "assistant", "content": "Hi there!"}]`;
+        case 'persona':
+          return `The persona-based format contains three columns:
+- instruction: The prompt or instruction for the model
+- response: The desired response the model should generate
+- persona: The persona description the model should adopt`;
+      }
+    }
+    
+    function downloadFile(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 50);
+    }
+    
+    function updateGoogleMap(city, state) {
+      const mapIframe = document.getElementById('google-map');
+      if (mapIframe) {
+        // Create the location query string
+        const locationQuery = encodeURIComponent(`${city},${state}`);
+        // Update the iframe src with new location
+        mapIframe.src = `https://maps.google.com/maps?q=${locationQuery}&t=k&z=11&ie=UTF8&iwloc=&output=embed`;
+      }
+    }
+    
+    // ===============================================
+    // Initialization
+    // ===============================================
+    
+    // ===============================================
+    // Dataset Split Functions
+    // ===============================================
+    function updateSplitPercentages() {
+      const trainPercent = document.getElementById('split-ratio').value;
+      document.getElementById('train-percent').textContent = trainPercent;
+      document.getElementById('val-percent').textContent = 100 - trainPercent;
+    }
+    
+    function splitDataset() {
+      if (!csvData.trim()) {
+        setStatus("No data to split.", true);
+        return;
+      }
+      
+      try {
+        const lines = csvData.split(/\r?\n/).filter(line => line.trim());
+        
+        if (lines.length < 3) { // Need header + at least 2 rows
+          setStatus("Not enough data to split.", true);
+          return;
+        }
+        
+        const header = lines[0];
+        const dataRows = lines.slice(1);
+        
+        // Shuffle data rows
+        for (let i = dataRows.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [dataRows[i], dataRows[j]] = [dataRows[j], dataRows[i]];
+        }
+        
+        // Calculate split
+        const trainPercent = parseInt(document.getElementById('split-ratio').value);
+        const trainCount = Math.max(1, Math.floor(dataRows.length * trainPercent / 100));
+        
+        // Create training and validation sets
+        const trainRows = dataRows.slice(0, trainCount);
+        const valRows = dataRows.slice(trainCount);
+        
+        // Create CSV files
+        const trainCsv = [header, ...trainRows].join('\n');
+        const valCsv = [header, ...valRows].join('\n');
+        
+        // Create download section
+        const splitDownloads = document.getElementById('split-downloads');
+        splitDownloads.classList.remove('hide');
+        splitDownloads.innerHTML = `
+          <p>Dataset split successfully:</p>
+          <p>Training set: ${trainRows.length} rows (${trainPercent}%)</p>
+          <p>Validation set: ${valRows.length} rows (${100 - trainPercent}%)</p>
+          <div class="button-group">
+            <button onclick="downloadSplitFile('${encodeURIComponent(trainCsv)}', 'train.csv')" class="success">
+              Download Training Set
+            </button>
+            <button onclick="downloadSplitFile('${encodeURIComponent(valCsv)}', 'validation.csv')" class="success">
+              Download Validation Set
+            </button>
+          </div>
+        `;
+        
+        setStatus("Dataset split successfully.");
+      } catch (error) {
+        setStatus(`Error splitting dataset: ${error.message}`, true);
+      }
+    }
+    
+    function downloadSplitFile(encodedData, filename) {
+      const decodedData = decodeURIComponent(encodedData);
+      const blob = new Blob([decodedData], {type: 'text/csv'});
+      downloadFile(blob, filename);
+    }
+    
+    // ===============================================
+    // Persona Integration Functions
+    // ===============================================
+    function importPersonaData(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        try {
+          const personaData = JSON.parse(event.target.result);
+          
+          if (!personaData || !personaData.examples || !Array.isArray(personaData.examples)) {
+            throw new Error("Invalid persona data format.");
+          }
+          
+          // Convert persona data to CSV
+          const csvRows = ['instruction,response,persona'];
+          const persona = personaData.description || "AI Assistant";
+          
+          personaData.examples.forEach(example => {
+            if (example.user && example.assistant) {
+              csvRows.push(`"${escapeCSV(example.user)}","${escapeCSV(example.assistant)}","${escapeCSV(persona)}"`);
+            }
+          });
+          
+          // Update preview
+          document.getElementById('persona-preview').classList.remove('hide');
+          document.getElementById('persona-preview').innerHTML = `
+            <p><strong>Persona:</strong> ${escapeHtml(persona)}</p>
+            <p><strong>Examples:</strong> ${personaData.examples.length} conversations</p>
+            <p>Click "Apply to Editor" to convert this data to CSV format.</p>
+            <button onclick="applyPersonaToEditor('${encodeURIComponent(csvRows.join('\n'))}')" class="success">
+              Apply to Editor
+            </button>
+          `;
+          
+          setStatus("Persona data imported successfully.");
+        } catch (error) {
+          setStatus(`Error importing persona data: ${error.message}`, true);
+        }
+      };
+      reader.onerror = () => setStatus("File read error.", true);
+      reader.readAsText(file);
+    }
+    
+    function applyPersonaToEditor(encodedData) {
+      const decodedData = decodeURIComponent(encodedData);
+      document.getElementById('toolbox-input').value = decodedData;
+      csvData = decodedData;
+      
+      // Switch to editor tab and update preview
+      switchTab('editor');
+      updatePreview();
+      setStatus("Persona data applied to editor.");
+    }
+    
+    // ===============================================
+    // API Key Management Functions
+    // ===============================================
+    function initializeApiKeysUI() {
+      // Load saved services
+      loadApiServices();
+      
+      // Add event listeners
+      document.getElementById('add-service-btn').addEventListener('click', addApiService);
+      document.getElementById('api-service').addEventListener('change', loadApiOperations);
+      document.getElementById('api-operation').addEventListener('change', buildApiParamsForm);
+      document.getElementById('execute-api').addEventListener('click', executeApiOperation);
+      document.getElementById('import-results').addEventListener('click', importApiResultsToEditor);
+      document.getElementById('clear-results').addEventListener('click', clearApiResults);
+    }
+    
+    function loadApiServices() {
+      // Load from localStorage
+      try {
+        const savedServices = localStorage.getItem('mito_api_services');
+        if (savedServices) {
+          const parsedServices = JSON.parse(savedServices);
+          
+          // Register services
+          for (const service of parsedServices) {
+            if (!apiRegistry.services[service.id]) {
+              apiRegistry.services[service.id] = {
+                name: service.name,
+                key: service.key,
+                baseUrl: service.baseUrl || '',
+                authType: service.authType || 'apikey',
+                operations: service.operations || {}
+              };
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error loading saved services:", error);
+      }
+      
+      // Update service list
+      updateServiceList();
+      
+      // Update service dropdown
+      updateServiceDropdown();
+    }
+    
+    function updateServiceList() {
+      const serviceList = document.getElementById('service-list');
+      serviceList.innerHTML = '';
+      
+      for (const serviceId in apiRegistry.services) {
+        const service = apiRegistry.services[serviceId];
+        
+        const serviceCard = document.createElement('div');
+        serviceCard.className = 'service-card';
+        
+        // Create service info
+        const nameElem = document.createElement('h3');
+        nameElem.textContent = service.name || serviceId;
+        serviceCard.appendChild(nameElem);
+        
+        if (service.key) {
+          const keyElem = document.createElement('div');
+          keyElem.className = 'service-key';
+          keyElem.textContent = '••••••••••••••••';
+          serviceCard.appendChild(keyElem);
+        }
+        
+        // Create service actions
+        const actionsElem = document.createElement('div');
+        actionsElem.className = 'service-actions';
+        
+        const deleteButton = document.createElement('button');
+        deleteButton.className = 'danger';
+        deleteButton.textContent = '✕';
+        deleteButton.title = 'Delete Service';
+        deleteButton.onclick = () => deleteApiService(serviceId);
+        actionsElem.appendChild(deleteButton);
+        
+        serviceCard.appendChild(actionsElem);
+        
+        serviceList.appendChild(serviceCard);
+      }
+    }
+    
+    function updateServiceDropdown() {
+      const serviceSelect = document.getElementById('api-service');
+      serviceSelect.innerHTML = '<option value="">Select a service...</option>';
+      
+      for (const serviceId in apiRegistry.services) {
+        const service = apiRegistry.services[serviceId];
+        const option = document.createElement('option');
+        option.value = serviceId;
+        option.textContent = service.name || serviceId;
+        serviceSelect.appendChild(option);
+      }
+    }
+    
+    function addApiService() {
+      const serviceName = document.getElementById('new-service-name').value.trim();
+      const serviceKey = document.getElementById('new-service-key').value.trim();
+      
+      if (!serviceName) {
+        setStatus("Please enter a service name.", true);
+        return;
+      }
+      
+      // Create service ID from name
+      const serviceId = serviceName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      
+      // Check if service already exists
+      if (apiRegistry.services[serviceId]) {
+        setStatus(`Service "${serviceName}" already exists.`, true);
+        return;
+      }
+      
+      // Add to registry
+      apiRegistry.services[serviceId] = {
+        name: serviceName,
+        key: serviceKey,
+        baseUrl: '',
+        authType: 'apikey',
+        operations: {}
+      };
+      
+      // Save to localStorage
+      saveApiServices();
+      
+      // Update UI
+      updateServiceList();
+      updateServiceDropdown();
+      
+      // Clear form
+      document.getElementById('new-service-name').value = '';
+      document.getElementById('new-service-key').value = '';
+      
+      setStatus(`Service "${serviceName}" added successfully.`);
+    }
+    
+    function deleteApiService(serviceId) {
+      if (!confirm(`Are you sure you want to delete the "${apiRegistry.services[serviceId].name || serviceId}" service?`)) {
+        return;
+      }
+      
+      // Remove from registry
+      delete apiRegistry.services[serviceId];
+      
+      // Save to localStorage
+      saveApiServices();
+      
+      // Update UI
+      updateServiceList();
+      updateServiceDropdown();
+      
+      setStatus(`Service deleted successfully.`);
+    }
+    
+    function saveApiServices() {
+      try {
+        const servicesArray = [];
+        
+        for (const serviceId in apiRegistry.services) {
+          const service = apiRegistry.services[serviceId];
+          servicesArray.push({
+            id: serviceId,
+            name: service.name,
+            key: service.key,
+            baseUrl: service.baseUrl,
+            authType: service.authType,
+            operations: service.operations
+          });
+        }
+        
+        localStorage.setItem('mito_api_services', JSON.stringify(servicesArray));
+      } catch (error) {
+        console.error("Error saving services:", error);
+      }
+    }
+    
+    function loadApiOperations() {
+      const serviceId = document.getElementById('api-service').value;
+      const operationSelect = document.getElementById('api-operation');
+      
+      operationSelect.innerHTML = '<option value="">Select an operation...</option>';
+      
+      if (!serviceId || !apiRegistry.services[serviceId]) {
+        operationSelect.disabled = true;
+        document.getElementById('execute-api').disabled = true;
+        return;
+      }
+      
+      // Enable select
+      operationSelect.disabled = false;
+      
+      // Get operations for service
+      const operations = apiRegistry.services[serviceId].operations;
+      
+      for (const opId in operations) {
+        const operation = operations[opId];
+        const option = document.createElement('option');
+        option.value = opId;
+        option.textContent = operation.name || opId;
+        operationSelect.appendChild(option);
+      }
+    }
+    
+    function buildApiParamsForm() {
+      const serviceId = document.getElementById('api-service').value;
+      const operationId = document.getElementById('api-operation').value;
+      const paramsContainer = document.getElementById('operation-params');
+      
+      paramsContainer.innerHTML = '';
+      document.getElementById('execute-api').disabled = true;
+      
+      if (!serviceId || !operationId || !apiRegistry.services[serviceId] || !apiRegistry.services[serviceId].operations[operationId]) {
+        return;
+      }
+      
+      // Get operation params
+      const operation = apiRegistry.services[serviceId].operations[operationId];
+      const params = operation.params || [];
+      
+      if (params.length === 0) {
+        document.getElementById('execute-api').disabled = false;
+        return;
+      }
+      
+      // Build form for each param
+      params.forEach(param => {
+        const paramGroup = document.createElement('div');
+        paramGroup.className = 'param-group';
+        
+        // Create label
+        const label = document.createElement('label');
+        label.textContent = param.name || param.id;
+        if (param.required) {
+          label.innerHTML += ' <span class="danger-text">*</span>';
+        }
+        paramGroup.appendChild(label);
+        
+        // Create input based on type
+        let input;
+        
+        switch (param.type) {
+          case 'textarea':
+            input = document.createElement('textarea');
+            break;
+          case 'select':
+            input = document.createElement('select');
+            
+            // Add options
+            if (param.options) {
+              param.options.forEach(option => {
+                const opt = document.createElement('option');
+                opt.value = option.value || option;
+                opt.textContent = option.label || option;
+                input.appendChild(opt);
+              });
+            }
+            break;
+          case 'boolean':
+            input = document.createElement('select');
+            const optTrue = document.createElement('option');
+            optTrue.value = 'true';
+            optTrue.textContent = 'True';
+            input.appendChild(optTrue);
+            const optFalse = document.createElement('option');
+            optFalse.value = 'false';
+            optFalse.textContent = 'False';
+            input.appendChild(optFalse);
+            break;
+          default: // text, number, etc.
+            input = document.createElement('input');
+            input.type = param.type === 'password' ? 'password' : 'text';
+            break;
+        }
+        
+        input.id = `param_${param.id}`;
+        input.placeholder = param.description || '';
+        
+        if (param.default !== undefined) {
+          if (input.tagName === 'SELECT') {
+            // For select, find the matching option
+            const options = input.querySelectorAll('option');
+            for (let i = 0; i < options.length; i++) {
+              if (options[i].value === param.default.toString()) {
+                options[i].selected = true;
+                break;
+              }
+            }
+          } else {
+            input.value = param.default;
+          }
+        }
+        
+        paramGroup.appendChild(input);
+        
+        // Add description if available
+        if (param.description) {
+          const description = document.createElement('small');
+          description.textContent = param.description;
+          description.style.display = 'block';
+          description.style.marginTop = '5px';
+          description.style.color = '#6b7280';
+          paramGroup.appendChild(description);
+        }
+        
+        paramsContainer.appendChild(paramGroup);
+      });
+      
+      // Enable execute button
+      document.getElementById('execute-api').disabled = false;
+    }
+    
+    function executeApiOperation() {
+      const serviceId = document.getElementById('api-service').value;
+      const operationId = document.getElementById('api-operation').value;
+      
+      if (!serviceId || !operationId) {
+        setStatus("Please select a service and operation.", true);
+        return;
+      }
+      
+      const service = apiRegistry.services[serviceId];
+      const operation = service.operations[operationId];
+      
+      if (!operation) {
+        setStatus("Operation not found.", true);
+        return;
+      }
+      
+      // Collect parameters
+      const params = {};
+      
+      if (operation.params) {
+        for (const param of operation.params) {
+          const paramElement = document.getElementById(`param_${param.id}`);
+          
+          if (paramElement) {
+            const paramValue = paramElement.value;
+            
+            // Check required params
+            if (param.required && !paramValue) {
+              setStatus(`Parameter "${param.name || param.id}" is required.`, true);
+              return;
+            }
+            
+            // Add to params object
+            params[param.id] = paramValue;
+          }
+        }
+      }
+      
+      // Execute API call
+      executeApiCall(service, operation, params);
+    }
+    
+    function executeApiCall(service, operation, params) {
+      setStatus("Executing API call...");
+      
+      // Build URL
+      let url = service.baseUrl || '';
+      let endpoint = operation.endpoint || '';
+      
+      // Replace path parameters in URL
+      for (const paramId in params) {
+        const paramValue = params[paramId];
+        endpoint = endpoint.replace(`{${paramId}}`, encodeURIComponent(paramValue));
+      }
+      
+      url += endpoint;
+      
+      // Build request options
+      const options = {
+        method: operation.method || 'GET',
+        headers: {
+          'Accept': 'application/json'
+        }
+      };
+      
+      // Add authentication
+      if (service.authType === 'apikey' && service.key) {
+        options.headers['Authorization'] = `Bearer ${service.key}`;
+      } else if (service.authType === 'basic' && service.key) {
+        options.headers['Authorization'] = `Basic ${btoa(service.key)}`;
+      }
+      
+      // Add body for POST/PUT requests
+      if (['POST', 'PUT', 'PATCH'].includes(options.method) && operation.bodyParam) {
+        options.headers['Content-Type'] = 'application/json';
+        const bodyData = {};
+        
+        // Add non-path params to body
+        for (const paramId in params) {
+          if (!endpoint.includes(`{${paramId}}`)) {
+            bodyData[paramId] = params[paramId];
+          }
+        }
+        
+        options.body = JSON.stringify(bodyData);
+      }
+      
+      // Execute request
+      fetch(url, options)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+          }
+          
+          // Parse response based on format
+          if (operation.outputFormat === 'json') {
+            return response.json();
+          } else if (operation.outputFormat === 'csv') {
+            return response.text();
+          } else {
+            return response.text();
+          }
+        })
+        .then(data => {
+          // Process data if needed
+          let formattedData = data;
+          
+          if (operation.outputMapping && typeof operation.outputMapping === 'function') {
+            formattedData = operation.outputMapping(data, params);
+          } else if (typeof data === 'object') {
+            formattedData = JSON.stringify(data, null, 2);
+          }
+          
+          // Display results
+          showApiResults(formattedData, operation.outputFormat);
+          setStatus("API call executed successfully.");
+        })
+        .catch(error => {
+          setStatus(`API error: ${error.message}`, true);
+        });
+    }
+    
+    function showApiResults(data, format) {
+      const resultsContainer = document.getElementById('results-container');
+      const resultsView = document.getElementById('results-view');
+      
+      resultsContainer.classList.remove('hide');
+      
+      // Format the results based on type
+      if (format === 'json' && typeof data === 'string') {
+        try {
+          // Try to parse and prettify JSON
+          const parsed = JSON.parse(data);
+          resultsView.innerHTML = `<pre>${syntaxHighlight(JSON.stringify(parsed, null, 2))}</pre>`;
+        } catch (e) {
+          // If not valid JSON, display as text
+          resultsView.innerHTML = `<pre>${escapeHtml(data)}</pre>`;
+        }
+      } else if (format === 'csv' || (typeof data === 'string' && data.includes(','))) {
+        // For CSV, create a table view
+        const lines = data.split(/\r?\n/);
+        
+        if (lines.length > 0) {
+          let tableHtml = '<table>';
+          
+          // Headers
+          const headers = parseCSVLine(lines[0]);
+          tableHtml += '<thead><tr>';
+          headers.forEach(header => {
+            tableHtml += `<th>${escapeHtml(header)}</th>`;
+          });
+          tableHtml += '</tr></thead><tbody>';
+          
+          // Data rows
+          for (let i = 1; i < lines.length; i++) {
+            const cells = parseCSVLine(lines[i]);
+            if (cells.length > 0) {
+              tableHtml += '<tr>';
+              cells.forEach(cell => {
+                tableHtml += `<td>${escapeHtml(cell)}</td>`;
+              });
+              tableHtml += '</tr>';
+            }
+          }
+          
+          tableHtml += '</tbody></table>';
+          resultsView.innerHTML = tableHtml;
+        } else {
+          resultsView.innerHTML = `<pre>${escapeHtml(data)}</pre>`;
+        }
+      } else {
+        // For other formats, display as text
+        resultsView.innerHTML = `<pre>${escapeHtml(data)}</pre>`;
+      }
+    }
+    
+    function importApiResultsToEditor() {
+      const resultsView = document.getElementById('results-view');
+      const content = resultsView.textContent;
+      
+      if (!content.trim()) {
+        setStatus("No results to import.", true);
+        return;
+      }
+      
+      document.getElementById('toolbox-input').value = content;
+      csvData = content;
+      
+      switchTab('editor');
+      updatePreview();
+      
+      setStatus("API results imported to editor.");
+    }
+    
+    function clearApiResults() {
+      document.getElementById('results-view').innerHTML = '';
+      document.getElementById('results-container').classList.add('hide');
+    }
+    
+    function syntaxHighlight(json) {
+      return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, match => {
+        let cls = 'number';
+        if (/^"/.test(match)) {
+          if (/:$/.test(match)) cls = 'key';
+          else cls = 'string';
+        } else if (/true|false/.test(match)) cls = 'boolean';
+        else if (/null/.test(match)) cls = 'null';
+        
+        return `<span class="${cls}">${match}</span>`;
+      });
+    }
+    
+    // NOAA Forecast Functions
+    async function getForecastByLocation() {
+      const location = document.getElementById('location').value.trim();
+      const forecastDiv = document.getElementById('forecast');
+      forecastDiv.innerHTML = "Loading...";
+      document.getElementById('forecastChart').style.display = "none";
+      if (forecastChart) {
+        forecastChart.destroy();
+        forecastChart = null;
+      }
+
+      try {
+        // Step 1: Geocode city/zip to lat/lon using Nominatim (OpenStreetMap)
+        const geocodeUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`;
+        const geoRes = await fetch(geocodeUrl, { headers: { 'User-Agent': 'MITO-Core/1.0' } });
+        const geoData = await geoRes.json();
+        if (!geoData.length) throw new Error("Location not found.");
+        const lat = geoData[0].lat;
+        const lon = geoData[0].lon;
+
+        // Step 2: Get the forecast office and gridpoint info from NOAA
+        const pointsResponse = await fetch(`https://api.weather.gov/points/${lat},${lon}`);
+        if (!pointsResponse.ok) throw new Error("NOAA location not found.");
+        const pointsData = await pointsResponse.json();
+
+        // Step 3: Get the forecast from NOAA
+        const forecastUrl = pointsData.properties.forecast;
+        const forecastResponse = await fetch(forecastUrl);
+        if (!forecastResponse.ok) throw new Error("Forecast not available for this location.");
+        const forecastData = await forecastResponse.json();
+
+        // Step 4: Display the forecast (all available periods)
+        const periods = forecastData.properties.periods;
+        let html = `<h2 style="color:#2563eb; margin-bottom:1em;">Forecast for ${pointsData.properties.relativeLocation.properties.city}, ${pointsData.properties.relativeLocation.properties.state}</h2>`;
+        periods.forEach(period => {
+          html += `<div class="forecast-card">
+            <div class="forecast-title">${period.name}: ${period.shortForecast}, ${period.temperature}&deg;${period.temperatureUnit}</div>
+            <div class="forecast-small">${period.detailedForecast}</div>
+          </div>`;
+        });
+        forecastDiv.innerHTML = html;
+
+        // Step 5: Prepare data for Chart.js and render
+        const ctx = document.getElementById('forecastChart').getContext('2d');
+        const labels = periods.map(p => p.name);
+        const temps = periods.map(p => p.temperature);
+        const unit = periods.length > 0 ? periods[0].temperatureUnit : '';
+        document.getElementById('forecastChart').style.display = "block";
+
+        forecastChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: `Temperature (°${unit})`,
+              data: temps,
+              backgroundColor: 'rgba(54, 162, 235, 0.2)',
+              borderColor: 'rgba(54, 162, 235, 1)',
+              borderWidth: 2,
+              tension: 0.3
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              title: {
+                display: true,
+                text: `Temperature Trend for ${pointsData.properties.relativeLocation.properties.city}, ${pointsData.properties.relativeLocation.properties.state}`,
+                font: {
+                  size: 16
+                }
+              },
+              legend: {
+                position: 'bottom'
+              }
+            },
+            scales: {
+              y: {
+                title: {
+                  display: true,
+                  text: `Temperature (°${unit})`
+                }
+              }
+            }
+          }
+        });
+
+        // Step 6: Update map
+        updateGoogleMap(
+          pointsData.properties.relativeLocation.properties.city,
+          pointsData.properties.relativeLocation.properties.state
+        );
+
+      } catch (error) {
+        forecastDiv.innerHTML = `<div class="forecast-card" style="background:#fee2e2;"><div class="forecast-title" style="color:#b91c1c;">Error</div><div class="forecast-small">${error.message}</div></div>`;
+      }
+    }
+  </script>
+</body>
+</html>
