@@ -1,30 +1,41 @@
-MITO Core + NOAA Dashboard Integration
-This integrated application combines the Universal CSV Converter capabilities of MITO Core with a fully-featured NOAA Forecast & Stormwater Dashboard.
-Optimized Features
-Instant Loading
-⦁	The NOAA Dashboard tab is now active by default when the page loads
-⦁	San Francisco, CA forecast automatically loads on page startup
-⦁	No blocking elements prevent initial rendering
-Complete Integration
-⦁	Google Maps view automatically displays the forecast location
-⦁	Stormwater table works with the same location search as the forecast
-⦁	All components share consistent styling and responsive design
-Data Pipeline
-⦁	Weather data can be directly imported to the CSV editor
-⦁	Stormwater compliance reporting formats are pre-configured
-⦁	NOAA API integration is built-in for direct data access
-User Experience Enhancements
-⦁	Dark mode support across all components
-⦁	Interactive map with hover effects
-⦁	Responsive design that works on all device sizes
-Using the Dashboard
-1.	The dashboard loads San Francisco data by default
-2.	Enter any city or zip code to get forecasts for a new location
-3.	Both the weather forecast and map update automatically
-4.	Use the "Import Precipitation Data" button to convert forecast data to CSV format
-Technical Notes
-⦁	The application uses the NOAA Weather API (api.weather.gov)
-⦁	Maps are provided through Google Maps iframe integration
-⦁	Chart visualization uses Chart.js
-⦁	CSV processing utilizes SheetJS
-This integration creates a seamless workflow from retrieving weather data to formatting it for regulatory compliance reporting, all within a single interface.
+# MITO Core
+
+**Source Status:** SUPPORTING  
+**StormAI Use:** ONLY WHEN CALLED BY AN APPROVED REQUIREMENT
+
+MITO Core is a supporting Stormwater Intelligence utility for file conversion and environmental-data workflows.
+
+StormAI may use MITO Core when an approved policy, SOP, skill, workflow, or instruction calls for its functions. MITO Core does not override ARCSEC, controlling requirements, required approvals, stop conditions, or verification requirements.
+
+Official organization source map: [StormAI Source Map](https://github.com/stormwater-intelligence-LLC/.github/blob/main/STORMAI_SOURCE_MAP.md)
+
+## Current Functions
+
+MITO Core combines:
+
+- Universal CSV conversion and editing.
+- NOAA weather and forecast access.
+- Location-based environmental-data display.
+- Map display.
+- Weather-data import into structured files.
+
+## Operating Rule
+
+The availability of a MITO Core function does not mean StormAI is authorized to use it for every task.
+
+Before StormAI uses MITO Core, the applicable workflow or instruction must identify the purpose of the action, required inputs, expected output, approval requirements, and required checks.
+
+## Technical Notes
+
+Current implementation material may include:
+
+- NOAA Weather API (`api.weather.gov`).
+- Google Maps integration.
+- Chart.js.
+- SheetJS.
+
+Third-party services and libraries remain subject to their own terms and requirements.
+
+## Stormwater Intelligence LLC
+
+[www.stormintel.net](https://www.stormintel.net/)
